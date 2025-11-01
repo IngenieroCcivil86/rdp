@@ -1,0 +1,39 @@
+name: RDP via Cloudflare Tunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  start-rdp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: 📦 Preparar entorno
+        run: |
+          sudo apt update -y
+          sudo apt install -y xfce4 xfce4-terminal xrdp
+          sudo systemctl enable xrdp
+          sudo systemctl start xrdp
+          echo "rdpuser:rdppass" | sudo chpasswd
+          sudo adduser rdpuser sudo
+
+      - name: 🌐 Instalar cloudflared
+        run: |
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+
+      - name: 🚀 Iniciar túnel temporal (sin login)
+        run: |
+          # Inicia un túnel local público directo sin necesidad de autenticarse con Cloudflare
+          nohup cloudflared tunnel --url tcp://localhost:3389 > tunnel.log 2>&1 &
+
+          # Espera unos segundos y muestra la URL pública
+          sleep 5
+          grep -o 'https://[0-9a-zA-Z.-]*\.trycloudflare.com' tunnel.log || true
+
+      - name: ⏳ Mantener sesión activa
+        run: |
+          echo "Conectate vía RDP a la URL que ves arriba."
+          echo "Usuario: rdpuser | Contraseña: rdppass"
+          sleep 7200
